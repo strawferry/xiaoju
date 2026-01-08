@@ -1,0 +1,2825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电车充电数据可视化面板 - 内嵌数据版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00d4ff;
+            --secondary: #00ff88;
+            --bg-dark: #0a0e27;
+            --bg-card: #1a1f3a;
+            --bg-card-hover: #252b4a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a8c0;
+            --border: #2a3150;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --success: #2ed573;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 背景网格动画 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        /* 头部设计 */
+        .header {
+            background: rgba(26, 31, 58, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo::before {
+            content: '⚡';
+            font-size: 28px;
+            -webkit-text-fill-color: var(--primary);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        /* 导航标签 */
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .nav-tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-tab:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--bg-dark);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.2);
+        }
+
+        .stat-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            background: linear-gradient(135deg, var(--text-primary), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-change {
+            font-size: 12px;
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            color: var(--warning);
+        }
+
+        /* 视图容器 */
+        .view-container {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .view-container.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 列表视图 */
+        .list-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .filter-select {
+            padding: 12px 15px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-select:hover {
+            border-color: var(--primary);
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        /* 表格样式 */
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: rgba(26, 31, 58, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        tr {
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: var(--bg-card-hover);
+            transform: scale(1.01);
+        }
+
+        /* 标签样式 */
+        .tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tag-success {
+            background: rgba(46, 213, 115, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(46, 213, 115, 0.3);
+        }
+
+        .tag-warning {
+            background: rgba(255, 165, 2, 0.2);
+            color: var(--warning);
+            border: 1px solid rgba(255, 165, 2, 0.3);
+        }
+
+        .tag-danger {
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--danger);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+        }
+
+        /* 日历时间线 */
+        .timeline-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+        }
+
+        .calendar-sidebar {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+
+        .month-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .month-btn {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .month-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--primary);
+            color: var(--text-primary);
+        }
+
+        .month-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--bg-dark);
+            border-color: transparent;
+            font-weight: 600;
+        }
+
+        .month-count {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .timeline-content {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .timeline-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--primary), var(--secondary));
+        }
+
+        .timeline-item:hover {
+            transform: translateX(4px);
+            border-color: var(--primary);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.15);
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .timeline-date {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .timeline-station {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .timeline-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .detail-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .detail-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* 分析图表区域 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            min-height: 300px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-title::before {
+            content: '📊';
+        }
+
+        .chart-placeholder {
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            border: 2px dashed var(--border);
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 212, 255, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .timeline-container {
+                grid-template-columns: 1fr;
+            }
+
+            .calendar-sidebar {
+                position: static;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .nav-tabs {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* 按钮组 */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--bg-dark);
+            border: none;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        /* 数据概览面板 */
+        .overview-panel {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 255, 136, 0.1));
+            border: 1px solid var(--primary);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .overview-item {
+            text-align: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .overview-item .label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .overview-item .value {
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 5px;
+            color: var(--primary);
+        }
+
+        /* 详情弹窗 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 30px;
+            position: relative;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: var(--danger);
+            transform: rotate(90deg);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .detail-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .detail-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .detail-key {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .detail-val {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* 状态提示 */
+        .status-banner {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(0, 255, 136, 0.2));
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-banner.error {
+            background: linear-gradient(135deg, rgba(255, 71, 87, 0.2), rgba(255, 165, 2, 0.2));
+            border-color: var(--danger);
+        }
+
+        .status-banner.success {
+            background: linear-gradient(135deg, rgba(46, 213, 115, 0.2), rgba(0, 212, 255, 0.2));
+            border-color: var(--success);
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部 -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">电车充电数据面板</div>
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-view="overview">📊 总览</button>
+                <button class="nav-tab" data-view="list">📋 列表</button>
+                <button class="nav-tab" data-view="timeline">📅 时间线</button>
+                <button class="nav-tab" data-view="analysis">📈 分析</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 状态提示区域 -->
+        <div id="statusArea"></div>
+
+        <!-- 总览视图 -->
+        <div id="overview" class="view-container active">
+            <div class="overview-panel">
+                <h2 style="margin-bottom: 10px;">数据概览</h2>
+                <div class="overview-grid" id="overviewStats">
+                    <div class="overview-item">
+                        <div class="label">总订单数</div>
+                        <div class="value" id="totalOrders">-</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="label">总费用(元)</div>
+                        <div class="value" id="totalCost">-</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="label">总电量(kWh)</div>
+                        <div class="value" id="totalPower">-</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="label">总时长(小时)</div>
+                        <div class="value" id="totalTime">-</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="label">平均费用</div>
+                        <div class="value" id="avgCost">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">本月订单数</div>
+                    <div class="stat-value" id="monthOrders">0</div>
+                    <div class="stat-change" id="monthChange">+0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">本月消费</div>
+                    <div class="stat-value" id="monthCost">¥0</div>
+                    <div class="stat-change" id="monthCostChange">+0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">常用充电站</div>
+                    <div class="stat-value" id="topStation">-</div>
+                    <div class="stat-change" id="topStationCount">0次</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">平均充电时长</div>
+                    <div class="stat-value" id="avgChargeTime">0分钟</div>
+                    <div class="stat-change">单次</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="chart-title">月度消费趋势</div>
+                    <div class="chart-placeholder" id="monthlyChart">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>数据加载中...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">充电站分布</div>
+                    <div class="chart-placeholder" id="stationChart">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>数据加载中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 列表视图 -->
+        <div id="list" class="view-container">
+            <div class="list-controls">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索充电站、订单号...">
+                </div>
+                <select class="filter-select" id="stationFilter">
+                    <option value="">所有充电站</option>
+                </select>
+                <select class="filter-select" id="monthFilter">
+                    <option value="">所有月份</option>
+                </select>
+                <button class="btn btn-primary" onclick="exportData()">导出数据</button>
+            </div>
+
+            <div class="table-container">
+                <div class="table-wrapper">
+                    <table id="ordersTable">
+                        <thead>
+                            <tr>
+                                <th>订单时间</th>
+                                <th>充电站</th>
+                                <th>费用(元)</th>
+                                <th>电量(kWh)</th>
+                                <th>时长(分钟)</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <tr>
+                                <td colspan="7" class="loading">
+                                    <div class="spinner"></div>
+                                    <span>加载数据中...</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 时间线视图 -->
+        <div id="timeline" class="view-container">
+            <div class="timeline-container">
+                <div class="calendar-sidebar">
+                    <h3 style="margin-bottom: 15px;">月份选择</h3>
+                    <div class="month-selector" id="monthSelector">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="timeline-content" id="timelineContent">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <span>加载时间线...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分析视图 -->
+        <div id="analysis" class="view-container">
+            <h2 style="margin-bottom: 20px;">数据分析</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">最高单次消费</div>
+                    <div class="stat-value" id="maxSingleCost">¥0</div>
+                    <div class="stat-change" id="maxSingleInfo">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">最低单次消费</div>
+                    <div class="stat-value" id="minSingleCost">¥0</div>
+                    <div class="stat-change" id="minSingleInfo">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">最长充电时间</div>
+                    <div class="stat-value" id="maxChargeTime">0分钟</div>
+                    <div class="stat-change" id="maxChargeTimeInfo">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">最高充电电量</div>
+                    <div class="stat-value" id="maxPower">0kWh</div>
+                    <div class="stat-change" id="maxPowerInfo">-</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="chart-title">充电时段分布</div>
+                    <div class="chart-placeholder" id="hourChart">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>分析中...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">费用构成分析</div>
+                    <div class="chart-placeholder" id="costChart">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>分析中...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">充电效率分析</div>
+                    <div class="chart-placeholder" id="efficiencyChart">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>分析中...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">月度充电次数</div>
+                    <div class="chart-placeholder" id="frequencyChart">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>分析中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <h3 class="modal-title" id="modalTitle">订单详情</h3>
+            <div class="detail-grid" id="modalContent">
+                <!-- 动态填充 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 内嵌数据 - 直接嵌入到HTML中，避免文件加载问题
+        const embeddedData = [
+            {
+                "billGenerated": true,
+                "paymentFee": 31.24,
+                "deleteAllowed": true,
+                "orderId": "3476792776175116729",
+                "connectorId": "210272010000074808",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 6.71,
+                "payType": 1,
+                "chargeETime": "2025-07-16 23:50:36",
+                "xjShield": 1,
+                "stationName": "中发百旺停车楼充电站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000175267808044101902",
+                "operatorId": "101437000",
+                "stationId": "101437000_58455",
+                "suspend": 0,
+                "chargeSTime": "2025-07-16 23:02:22",
+                "chargeTime": 2894,
+                "orderSTime": "2025-07-16 23:01:51",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 27.53,
+                "totalFee": 34.24,
+                "orderETime": "2025-07-16 23:50:40",
+                "payStatus": 3,
+                "totalPower": 67.143
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 38.59,
+                "deleteAllowed": true,
+                "orderId": "3476792697493345721",
+                "connectorId": "0510423714121163013",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 12.43,
+                "payType": 1,
+                "chargeETime": "2025-07-11 23:43:51",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000175224613544101201",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-07-11 23:02:45",
+                "chargeTime": 2466,
+                "orderSTime": "2025-07-11 23:02:28",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 26.16,
+                "totalFee": 38.59,
+                "orderETime": "2025-07-11 23:44:04",
+                "payStatus": 3,
+                "totalPower": 65.409
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 38.53,
+                "deleteAllowed": true,
+                "orderId": "3476792605618812345",
+                "connectorId": "0510423714121164001",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 12.41,
+                "payType": 1,
+                "chargeETime": "2025-07-06 01:28:22",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000175173398544101051",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-07-06 00:47:03",
+                "chargeTime": 2479,
+                "orderSTime": "2025-07-06 00:46:44",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 26.12,
+                "totalFee": 38.53,
+                "orderETime": "2025-07-06 01:28:27",
+                "payStatus": 3,
+                "totalPower": 65.304
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 29.03,
+                "deleteAllowed": true,
+                "orderId": "3476792433487227321",
+                "connectorId": "0510423714121165005",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 8.66,
+                "payType": 1,
+                "chargeETime": "2025-06-24 23:38:20",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000175077764044100501",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-06-24 23:07:51",
+                "chargeTime": 1829,
+                "orderSTime": "2025-06-24 23:07:26",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 20.37,
+                "totalFee": 29.03,
+                "orderETime": "2025-06-24 23:38:30",
+                "payStatus": 3,
+                "totalPower": 50.922
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 0.0,
+                "deleteAllowed": true,
+                "orderId": "3476792433438757305",
+                "connectorId": "0510423714121165003",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 0.0,
+                "payType": 1,
+                "chargeETime": "2025-06-27 23:05:45",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000175077734244101752",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-06-24 23:02:44",
+                "chargeTime": 259381,
+                "orderSTime": "2025-06-24 23:02:44",
+                "commentStatus": 1001,
+                "hasOutTradeId": 0,
+                "eleFee": 0.0,
+                "totalFee": 0.0,
+                "orderETime": "2025-06-27 23:05:45",
+                "payStatus": 3,
+                "totalPower": 0.0
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 37.75,
+                "deleteAllowed": true,
+                "orderId": "3476792331286499769",
+                "connectorId": "0510423714121171008",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 11.26,
+                "payType": 1,
+                "chargeETime": "2025-06-17 23:49:25",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000175017251944100851",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-06-17 23:02:29",
+                "chargeTime": 2816,
+                "orderSTime": "2025-06-17 23:02:10",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 26.49,
+                "totalFee": 37.75,
+                "orderETime": "2025-06-17 23:49:35",
+                "payStatus": 3,
+                "totalPower": 66.232
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 34.37,
+                "deleteAllowed": true,
+                "orderId": "3476792190539913657",
+                "connectorId": "0510423714121171008",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 10.25,
+                "payType": 1,
+                "chargeETime": "2025-06-07 23:45:28",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000175077764044100501",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-06-07 23:01:10",
+                "chargeTime": 2658,
+                "orderSTime": "2025-06-07 23:00:53",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 24.12,
+                "totalFee": 34.37,
+                "orderETime": "2025-06-07 23:45:37",
+                "payStatus": 3,
+                "totalPower": 60.301
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 38.52,
+                "deleteAllowed": true,
+                "orderId": "3476792030928098745",
+                "connectorId": "0510423714121171006",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 11.29,
+                "payType": 1,
+                "chargeETime": "2025-05-26 23:49:59",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000174827161644100251",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-05-26 23:00:45",
+                "chargeTime": 2954,
+                "orderSTime": "2025-05-26 23:00:26",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 27.23,
+                "totalFee": 38.52,
+                "orderETime": "2025-05-26 23:50:08",
+                "payStatus": 3,
+                "totalPower": 66.421
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 33.19,
+                "deleteAllowed": true,
+                "orderId": "3476791928989758905",
+                "connectorId": "0510423714121171008",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 9.73,
+                "payType": 1,
+                "chargeETime": "2025-05-19 03:53:19",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000174759527844102951",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-05-19 03:08:29",
+                "chargeTime": 2690,
+                "orderSTime": "2025-05-19 03:08:10",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 23.46,
+                "totalFee": 33.19,
+                "orderETime": "2025-05-19 03:53:30",
+                "payStatus": 3,
+                "totalPower": 57.218
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 37.98,
+                "deleteAllowed": true,
+                "orderId": "3476791827621916089",
+                "connectorId": "0510423714121165007",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 11.13,
+                "payType": 1,
+                "chargeETime": "2025-05-11 03:49:03",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000174690346144101251",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-05-11 02:58:13",
+                "chargeTime": 3050,
+                "orderSTime": "2025-05-11 02:57:55",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 26.85,
+                "totalFee": 37.98,
+                "orderETime": "2025-05-11 03:49:12",
+                "payStatus": 3,
+                "totalPower": 65.499
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 34.39,
+                "deleteAllowed": true,
+                "orderId": "3476791695657814457",
+                "connectorId": "0510423714121163013",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 9.91,
+                "payType": 1,
+                "chargeETime": "2025-04-30 23:50:52",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000174602536344100752",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-04-30 23:03:09",
+                "chargeTime": 2863,
+                "orderSTime": "2025-04-30 23:02:55",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 24.48,
+                "totalFee": 34.39,
+                "orderETime": "2025-04-30 23:51:00",
+                "payStatus": 3,
+                "totalPower": 58.283
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 35.96,
+                "deleteAllowed": true,
+                "orderId": "3476791270454059449",
+                "connectorId": "0510423714121169007",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 10.54,
+                "payType": 1,
+                "chargeETime": "2025-03-28 01:06:39",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000174309213944100251",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-03-28 00:16:18",
+                "chargeTime": 3021,
+                "orderSTime": "2025-03-28 00:15:54",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 25.42,
+                "totalFee": 35.96,
+                "orderETime": "2025-03-28 01:06:42",
+                "payStatus": 3,
+                "totalPower": 61.991
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 26.6,
+                "deleteAllowed": true,
+                "orderId": "3476790413146915257",
+                "connectorId": "0510423714121162004",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 7.73,
+                "payType": 1,
+                "chargeETime": "2025-01-12 07:18:26",
+                "xjShield": 0,
+                "stationName": "中国石油北京蓝天西小口停车场充电场站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000173663408344102901",
+                "operatorId": "565843400",
+                "stationId": "565843400_CABJAC046306",
+                "suspend": 0,
+                "chargeSTime": "2025-01-12 06:21:42",
+                "chargeTime": 3404,
+                "orderSTime": "2025-01-12 06:21:37",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 18.87,
+                "totalFee": 26.6,
+                "orderETime": "2025-01-12 07:18:49",
+                "payStatus": 3,
+                "totalPower": 36.669
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 12.94,
+                "deleteAllowed": true,
+                "orderId": "3476790256326928825",
+                "connectorId": "01222006069101",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 1.39,
+                "payType": 1,
+                "chargeETime": "2024-12-30 12:52:52",
+                "xjShield": 1,
+                "stationName": "北京朝阳日坛充电站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000173553350444102254",
+                "operatorId": "101437000",
+                "stationId": "101437000_5642",
+                "suspend": 0,
+                "chargeSTime": "2024-12-30 12:38:38",
+                "chargeTime": 854,
+                "orderSTime": "2024-12-30 12:38:38",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 11.55,
+                "totalFee": 12.94,
+                "orderETime": "2024-12-30 12:52:52",
+                "payStatus": 3,
+                "totalPower": 9.239
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 46.12,
+                "deleteAllowed": true,
+                "orderId": "3476790252725697977",
+                "connectorId": "210472010600146802",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 3.51,
+                "payType": 1,
+                "chargeETime": "2024-12-30 07:00:30",
+                "xjShield": 1,
+                "stationName": "二河开21号艺术区（圆明园超充站）",
+                "hasPrepay": false,
+                "chargeSeq": "101437000173550998344103154",
+                "operatorId": "101437000",
+                "stationId": "101437000_33943",
+                "suspend": 0,
+                "chargeSTime": "2024-12-30 06:06:34",
+                "chargeTime": 3236,
+                "orderSTime": "2024-12-30 06:06:34",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 43.32,
+                "totalFee": 46.83,
+                "orderETime": "2024-12-30 07:00:30",
+                "payStatus": 3,
+                "totalPower": 69.744
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 59.11,
+                "deleteAllowed": true,
+                "orderId": "3476790216512548281",
+                "connectorId": "01222006062502",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 7.6,
+                "payType": 1,
+                "chargeETime": "2024-12-27 10:26:50",
+                "xjShield": 1,
+                "stationName": "北京朝阳日坛充电站",
+                "hasPrepay": false,
+                "chargeSeq": "101437000173526429444101002",
+                "operatorId": "101437000",
+                "stationId": "101437000_5642",
+                "suspend": 0,
+                "chargeSTime": "2024-12-27 09:51:45",
+                "chargeTime": 2105,
+                "orderSTime": "2024-12-27 09:51:45",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 53.79,
+                "totalFee": 61.39,
+                "orderETime": "2024-12-27 10:26:50",
+                "payStatus": 3,
+                "totalPower": 45.052
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 47.12,
+                "deleteAllowed": true,
+                "orderId": "3476790139980888505",
+                "connectorId": "210472010600146702",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 3.77,
+                "payType": 1,
+                "chargeETime": "2024-12-21 06:59:14",
+                "xjShield": 1,
+                "stationName": "二河开21号艺术区（圆明园超充站）",
+                "hasPrepay": false,
+                "chargeSeq": "101437000173473168044102252",
+                "operatorId": "101437000",
+                "stationId": "101437000_33943",
+                "suspend": 0,
+                "chargeSTime": "2024-12-21 05:54:43",
+                "chargeTime": 3871,
+                "orderSTime": "2024-12-21 05:54:43",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 46.75,
+                "totalFee": 50.52,
+                "orderETime": "2024-12-21 06:59:14",
+                "payStatus": 3,
+                "totalPower": 75.403
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 25.93,
+                "deleteAllowed": true,
+                "orderId": "3476793761248869817",
+                "connectorId": "2174857562000601",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 5.56,
+                "payType": 1,
+                "chargeETime": "2025-09-16 23:44:23",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000175803484944103452",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-09-16 23:00:59",
+                "chargeTime": 2604,
+                "orderSTime": "2025-09-16 23:00:59",
+                "commentStatus": 1001,
+                "eleFee": 23.37,
+                "hasOutTradeId": 1,
+                "totalFee": 28.93,
+                "orderETime": "2025-09-16 23:44:23",
+                "payStatus": 3,
+                "totalPower": 55.64
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 35.57,
+                "deleteAllowed": true,
+                "orderId": "3476793679359464889",
+                "connectorId": "2174857562000601",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 11.57,
+                "payType": 1,
+                "chargeETime": "2025-09-11 23:45:01",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "10143700017560271144102752",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-09-11 23:00:22",
+                "chargeTime": 2679,
+                "orderSTime": "2025-09-11 23:00:19",
+                "commentStatus": 1001,
+                "eleFee": 27.0,
+                "hasOutTradeId": 1,
+                "totalFee": 38.57,
+                "orderETime": "2025-09-11 23:45:04",
+                "payStatus": 3,
+                "totalPower": 64.28
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 26.8,
+                "deleteAllowed": true,
+                "orderId": "3476793557784862137",
+                "connectorId": "2174857653700901",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 9.54,
+                "payType": 1,
+                "chargeETime": "2025-09-04 02:51:02",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000175692324244100902",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-09-04 02:14:26",
+                "chargeTime": 2196,
+                "orderSTime": "2025-09-04 02:14:26",
+                "commentStatus": 1001,
+                "eleFee": 22.26,
+                "hasOutTradeId": 1,
+                "totalFee": 31.8,
+                "orderETime": "2025-09-04 02:51:02",
+                "payStatus": 3,
+                "totalPower": 53.01
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 36.3,
+                "deleteAllowed": true,
+                "orderId": "3476793446206525881",
+                "connectorId": "2174857562000801",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 11.99,
+                "payType": 1,
+                "chargeETime": "2025-08-27 23:50:29",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000175630712244100802",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-08-27 23:05:41",
+                "chargeTime": 2688,
+                "orderSTime": "2025-08-27 23:05:38",
+                "commentStatus": 1001,
+                "eleFee": 27.31,
+                "hasOutTradeId": 1,
+                "totalFee": 39.3,
+                "orderETime": "2025-08-27 23:50:31",
+                "payStatus": 3,
+                "totalPower": 66.61
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 34.01,
+                "deleteAllowed": true,
+                "orderId": "3476793349093968313",
+                "connectorId": "2174857562000401",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 11.29,
+                "payType": 1,
+                "chargeETime": "2025-08-21 23:46:54",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000175578867244102552",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-08-21 23:04:45",
+                "chargeTime": 2529,
+                "orderSTime": "2025-08-21 23:04:45",
+                "commentStatus": 1001,
+                "eleFee": 25.72,
+                "hasOutTradeId": 1,
+                "totalFee": 37.01,
+                "orderETime": "2025-08-21 23:46:54",
+                "payStatus": 3,
+                "totalPower": 62.72
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 35.24,
+                "deleteAllowed": true,
+                "orderId": "3476793283601215929",
+                "connectorId": "2175084342400107",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 10.24,
+                "payType": 1,
+                "chargeETime": "2025-08-17 23:41:55",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "中发百旺停车楼充电站",
+                "chargeSeq": "101437000175544286644103102",
+                "operatorId": "101437000",
+                "stationId": "101437000_58455",
+                "suspend": 0,
+                "chargeSTime": "2025-08-17 23:01:51",
+                "chargeTime": 2404,
+                "orderSTime": "2025-08-17 23:01:27",
+                "commentStatus": 1001,
+                "eleFee": 28.0,
+                "hasOutTradeId": 1,
+                "totalFee": 38.24,
+                "orderETime": "2025-08-17 23:42:02",
+                "payStatus": 3,
+                "totalPower": 68.286
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 30.5,
+                "deleteAllowed": true,
+                "orderId": "3476793157634661817",
+                "connectorId": "210272010000074806",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 8.97,
+                "payType": 1,
+                "chargeETime": "2025-08-10 02:10:11",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "中发百旺停车楼充电站",
+                "chargeSeq": "101437000175476063544103052",
+                "operatorId": "101437000",
+                "stationId": "101437000_58455",
+                "suspend": 0,
+                "chargeSTime": "2025-08-10 01:31:18",
+                "chargeTime": 2333,
+                "orderSTime": "2025-08-10 01:30:57",
+                "commentStatus": 1001,
+                "eleFee": 24.53,
+                "hasOutTradeId": 1,
+                "totalFee": 33.5,
+                "orderETime": "2025-08-10 02:10:21",
+                "payStatus": 3,
+                "totalPower": 59.833
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 30.1,
+                "deleteAllowed": true,
+                "orderId": "3476793090938001849",
+                "connectorId": "210272010000074802",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 6.49,
+                "payType": 1,
+                "chargeETime": "2025-08-05 23:43:39",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "中发百旺停车楼充电站",
+                "chargeSeq": "101437000175440601544102902",
+                "operatorId": "101437000",
+                "stationId": "101437000_58455",
+                "suspend": 0,
+                "chargeSTime": "2025-08-05 23:00:52",
+                "chargeTime": 2567,
+                "orderSTime": "2025-08-05 23:00:28",
+                "commentStatus": 1001,
+                "eleFee": 26.61,
+                "hasOutTradeId": 1,
+                "totalFee": 33.1,
+                "orderETime": "2025-08-05 23:43:46",
+                "payStatus": 3,
+                "totalPower": 64.914
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 28.15,
+                "deleteAllowed": true,
+                "orderId": "3476792950121133497",
+                "connectorId": "2175084370000101",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 6.11,
+                "payType": 1,
+                "chargeETime": "2025-07-28 01:35:18",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "中发百旺停车楼充电站",
+                "chargeSeq": "101437000175363527744100506",
+                "operatorId": "101437000",
+                "stationId": "101437000_58455",
+                "suspend": 0,
+                "chargeSTime": "2025-07-28 00:55:07",
+                "chargeTime": 2411,
+                "orderSTime": "2025-07-28 00:54:50",
+                "commentStatus": 1001,
+                "eleFee": 25.04,
+                "hasOutTradeId": 1,
+                "totalFee": 31.15,
+                "orderETime": "2025-07-28 01:35:25",
+                "payStatus": 3,
+                "totalPower": 61.074
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 26.92,
+                "deleteAllowed": true,
+                "orderId": "3476792854290048441",
+                "connectorId": "210272010000074801",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 5.87,
+                "payType": 1,
+                "chargeETime": "2025-07-21 23:39:14",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "中发百旺停车楼充电站",
+                "chargeSeq": "101437000175311000544100752",
+                "operatorId": "101437000",
+                "stationId": "101437000_58455",
+                "suspend": 0,
+                "chargeSTime": "2025-07-21 23:01:00",
+                "chargeTime": 2294,
+                "orderSTime": "2025-07-21 23:00:25",
+                "commentStatus": 1001,
+                "eleFee": 24.05,
+                "hasOutTradeId": 1,
+                "totalFee": 29.92,
+                "orderETime": "2025-07-21 23:39:22",
+                "payStatus": 3,
+                "totalPower": 58.658
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 29.06,
+                "deleteAllowed": true,
+                "orderId": "3476795451711072697",
+                "connectorId": "2174857653701201",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 6.41,
+                "payType": 1,
+                "chargeETime": "2025-12-31 06:18:50",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000176712901344104802",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-12-31 05:10:22",
+                "chargeTime": 4108,
+                "orderSTime": "2025-12-31 05:10:22",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 25.65,
+                "totalFee": 32.06,
+                "orderETime": "2025-12-31 06:18:50",
+                "payStatus": 3,
+                "totalPower": 64.12
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 25.34,
+                "deleteAllowed": true,
+                "orderId": "3476795380281162169",
+                "connectorId": "2174857653701501",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 5.67,
+                "payType": 1,
+                "chargeETime": "2025-12-27 00:43:17",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000176676289344104352",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-12-26 23:28:21",
+                "chargeTime": 4496,
+                "orderSTime": "2025-12-26 23:28:21",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 22.67,
+                "totalFee": 28.34,
+                "orderETime": "2025-12-27 00:43:17",
+                "payStatus": 3,
+                "totalPower": 56.67
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 27.52,
+                "deleteAllowed": true,
+                "orderId": "3476795244472323513",
+                "connectorId": "2174857653700901",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 6.11,
+                "payType": 1,
+                "chargeETime": "2025-12-19 00:01:54",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000176606998444102052",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-12-18 22:59:56",
+                "chargeTime": 3718,
+                "orderSTime": "2025-12-18 22:59:56",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 24.41,
+                "totalFee": 30.52,
+                "orderETime": "2025-12-19 00:01:54",
+                "payStatus": 3,
+                "totalPower": 61.03
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 26.94,
+                "deleteAllowed": true,
+                "orderId": "3476795129101475257",
+                "connectorId": "2174857653701001",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 5.99,
+                "payType": 1,
+                "chargeETime": "2025-12-12 00:26:42",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000176546500744104052",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-12-11 23:00:12",
+                "chargeTime": 5190,
+                "orderSTime": "2025-12-11 23:00:12",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 23.95,
+                "totalFee": 29.94,
+                "orderETime": "2025-12-12 00:26:42",
+                "payStatus": 3,
+                "totalPower": 59.88
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 31.07,
+                "deleteAllowed": true,
+                "orderId": "3476794405026940345",
+                "connectorId": "2174857653701601",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 6.55,
+                "payType": 1,
+                "chargeETime": "2025-10-26 23:54:08",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000176149012844101802",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-10-26 23:00:10",
+                "chargeTime": 3238,
+                "orderSTime": "2025-10-26 23:00:09",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 27.52,
+                "totalFee": 34.07,
+                "orderETime": "2025-10-26 23:54:10",
+                "payStatus": 3,
+                "totalPower": 65.53
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 28.86,
+                "deleteAllowed": true,
+                "orderId": "3476794280812067257",
+                "connectorId": "2174857653701001",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 6.12,
+                "payType": 1,
+                "chargeETime": "2025-10-19 00:06:42",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000176080026244101604",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-10-18 23:11:12",
+                "chargeTime": 3330,
+                "orderSTime": "2025-10-18 23:11:11",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 25.74,
+                "totalFee": 31.86,
+                "orderETime": "2025-10-19 00:06:45",
+                "payStatus": 3,
+                "totalPower": 61.29
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 25.92,
+                "deleteAllowed": true,
+                "orderId": "3476794172117386681",
+                "connectorId": "2174857653700401",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 5.56,
+                "payType": 1,
+                "chargeETime": "2025-10-11 23:42:30",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000176019474444100302",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-10-11 23:00:25",
+                "chargeTime": 2525,
+                "orderSTime": "2025-10-11 23:00:25",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 23.36,
+                "totalFee": 28.92,
+                "orderETime": "2025-10-11 23:42:30",
+                "payStatus": 3,
+                "totalPower": 55.62
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 11.93,
+                "deleteAllowed": true,
+                "orderId": "3476793994300601785",
+                "connectorId": "2174857653701101",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 2.84,
+                "payType": 1,
+                "chargeETime": "2025-09-30 23:23:00",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000175924450044100152",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-09-30 23:01:53",
+                "chargeTime": 1267,
+                "orderSTime": "2025-09-30 23:01:53",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 11.93,
+                "totalFee": 14.77,
+                "orderETime": "2025-09-30 23:23:00",
+                "payStatus": 3,
+                "totalPower": 28.41
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 21.5,
+                "deleteAllowed": true,
+                "orderId": "3476793942046962105",
+                "connectorId": "2174857562000701",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 4.71,
+                "payType": 1,
+                "chargeETime": "2025-09-27 23:40:28",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000175898520544101302",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-09-27 23:00:13",
+                "chargeTime": 2415,
+                "orderSTime": "2025-09-27 23:00:13",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 19.79,
+                "totalFee": 24.5,
+                "orderETime": "2025-09-27 23:40:28",
+                "payStatus": 3,
+                "totalPower": 47.12
+            },
+            {
+                "billGenerated": true,
+                "paymentFee": 26.68,
+                "deleteAllowed": true,
+                "orderId": "3476793836930282937",
+                "connectorId": "2174857562000701",
+                "orderStatus": 4,
+                "uid": "580549510974322",
+                "servFee": 5.71,
+                "payType": 1,
+                "chargeETime": "2025-09-20 23:45:55",
+                "xjShield": 1,
+                "hasPrepay": false,
+                "stationName": "京能超级充电站中发百旺站",
+                "chargeSeq": "101437000175838047444102706",
+                "operatorId": "101437000",
+                "stationId": "101437000_43533",
+                "suspend": 0,
+                "chargeSTime": "2025-09-20 23:01:29",
+                "chargeTime": 2666,
+                "orderSTime": "2025-09-20 23:01:29",
+                "commentStatus": 1001,
+                "hasOutTradeId": 1,
+                "eleFee": 23.97,
+                "totalFee": 29.68,
+                "orderETime": "2025-09-20 23:45:55",
+                "payStatus": 3,
+                "totalPower": 57.06
+            }
+        ];
+
+        // 数据管理
+        let allData = [];
+        let filteredData = [];
+        let currentView = 'overview';
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            showStatus('正在加载数据...', 'info');
+            
+            // 延迟一小会儿，让用户看到加载状态
+            setTimeout(() => {
+                try {
+                    // 直接使用内嵌数据
+                    allData = embeddedData.map(item => ({
+                        ...item,
+                        chargeDate: new Date(item.chargeETime || item.chargeSTime),
+                        totalFee: parseFloat(item.totalFee) || 0,
+                        totalPower: parseFloat(item.totalPower) || 0,
+                        chargeTime: Math.round((item.chargeTime || 0) / 60), // 转换为分钟
+                        eleFee: parseFloat(item.eleFee) || 0,
+                        servFee: parseFloat(item.servFee) || 0
+                    }));
+
+                    filteredData = [...allData];
+                    
+                    showStatus(`数据加载成功！共 ${allData.length} 条充电记录`, 'success');
+                    
+                    updateAllViews();
+                    populateFilters();
+                    setupEventListeners();
+                    
+                } catch (error) {
+                    console.error('数据处理失败:', error);
+                    showStatus('数据处理失败: ' + error.message, 'error');
+                }
+            }, 500);
+        });
+
+        // 显示状态信息
+        function showStatus(message, type = 'info') {
+            const statusArea = document.getElementById('statusArea');
+            if (!statusArea) return;
+
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            statusArea.innerHTML = `
+                <div class="status-banner ${className}">
+                    <span>${type === 'error' ? '❌' : type === 'success' ? '✅' : '⏳'}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+
+            // 3秒后自动隐藏成功消息
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusArea.innerHTML = '';
+                }, 3000);
+            }
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 导航标签
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const view = this.dataset.view;
+                    switchView(view);
+                });
+            });
+
+            // 搜索和过滤
+            document.getElementById('searchInput')?.addEventListener('input', debounce(filterData, 300));
+            document.getElementById('stationFilter')?.addEventListener('change', filterData);
+            document.getElementById('monthFilter')?.addEventListener('change', filterData);
+        }
+
+        // 切换视图
+        function switchView(view) {
+            currentView = view;
+            
+            // 更新导航状态
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.view === view) {
+                    tab.classList.add('active');
+                }
+            });
+
+            // 更新视图显示
+            document.querySelectorAll('.view-container').forEach(container => {
+                container.classList.remove('active');
+            });
+            document.getElementById(view).classList.add('active');
+
+            // 视图特定的更新
+            if (view === 'timeline') {
+                updateTimelineView();
+            } else if (view === 'analysis') {
+                updateAnalysisView();
+            } else if (view === 'overview') {
+                updateOverviewCharts();
+            }
+        }
+
+        // 更新所有视图
+        function updateAllViews() {
+            updateOverviewStats();
+            updateListTable();
+            updateTimelineView();
+            updateAnalysisView();
+            updateOverviewCharts();
+        }
+
+        // 更新总览统计
+        function updateOverviewStats() {
+            if (allData.length === 0) return;
+
+            const totalOrders = allData.length;
+            const totalCost = allData.reduce((sum, item) => sum + item.totalFee, 0);
+            const totalPower = allData.reduce((sum, item) => sum + item.totalPower, 0);
+            const totalTime = allData.reduce((sum, item) => sum + item.chargeTime, 0);
+            const avgCost = totalCost / totalOrders;
+
+            // 更新概览面板
+            document.getElementById('totalOrders').textContent = totalOrders;
+            document.getElementById('totalCost').textContent = totalCost.toFixed(2);
+            document.getElementById('totalPower').textContent = totalPower.toFixed(2);
+            document.getElementById('totalTime').textContent = (totalTime / 60).toFixed(1);
+            document.getElementById('avgCost').textContent = '¥' + avgCost.toFixed(2);
+
+            // 本月数据
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            const monthData = allData.filter(item => {
+                const date = item.chargeDate;
+                return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+            });
+
+            const monthOrders = monthData.length;
+            const monthCost = monthData.reduce((sum, item) => sum + item.totalFee, 0);
+
+            // 上月数据（用于计算变化）
+            const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+            const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+            
+            const lastMonthData = allData.filter(item => {
+                const date = item.chargeDate;
+                return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
+            });
+
+            const lastMonthOrders = lastMonthData.length || 1;
+            const lastMonthCost = lastMonthData.reduce((sum, item) => sum + item.totalFee, 0) || 1;
+
+            // 计算变化百分比
+            const ordersChange = ((monthOrders - lastMonthOrders) / lastMonthOrders * 100).toFixed(1);
+            const costChange = ((monthCost - lastMonthCost) / lastMonthCost * 100).toFixed(1);
+
+            document.getElementById('monthOrders').textContent = monthOrders;
+            document.getElementById('monthCost').textContent = '¥' + monthCost.toFixed(0);
+            
+            const ordersChangeEl = document.getElementById('monthOrders').nextElementSibling;
+            const costChangeEl = document.getElementById('monthCost').nextElementSibling;
+            
+            ordersChangeEl.textContent = (ordersChange >= 0 ? '+' : '') + ordersChange + '%';
+            ordersChangeEl.className = 'stat-change' + (ordersChange < 0 ? ' negative' : '');
+            
+            costChangeEl.textContent = (costChange >= 0 ? '+' : '') + costChange + '%';
+            costChangeEl.className = 'stat-change' + (costChange < 0 ? ' negative' : '');
+
+            // 常用充电站
+            const stationCounts = {};
+            allData.forEach(item => {
+                stationCounts[item.stationName] = (stationCounts[item.stationName] || 0) + 1;
+            });
+            const topStation = Object.entries(stationCounts).sort((a, b) => b[1] - a[1])[0];
+            
+            if (topStation) {
+                document.getElementById('topStation').textContent = topStation[0].substring(0, 8) + '...';
+                document.getElementById('topStationCount').textContent = topStation[1] + '次';
+            }
+
+            // 平均充电时长
+            const avgTime = totalTime / totalOrders;
+            document.getElementById('avgChargeTime').textContent = Math.round(avgTime) + '分钟';
+        }
+
+        // 更新列表表格
+        function updateListTable() {
+            const tbody = document.getElementById('ordersTableBody');
+            
+            if (filteredData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div class="empty-state-icon">🔍</div>
+                            <div>暂无数据</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filteredData.map(item => `
+                <tr onclick="showDetail('${item.orderId}')">
+                    <td>${formatDateTime(item.chargeDate)}</td>
+                    <td title="${item.stationName}">${item.stationName.substring(0, 12)}...</td>
+                    <td style="color: var(--primary); font-weight: 600;">¥${item.totalFee.toFixed(2)}</td>
+                    <td>${item.totalPower.toFixed(2)}</td>
+                    <td>${item.chargeTime}</td>
+                    <td><span class="tag tag-success">已完成</span></td>
+                    <td>
+                        <button class="btn" style="padding: 4px 8px; font-size: 12px;" onclick="event.stopPropagation(); showDetail('${item.orderId}')">详情</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 更新时间线视图
+        function updateTimelineView() {
+            if (allData.length === 0) return;
+
+            // 按月份分组
+            const monthGroups = {};
+            allData.forEach(item => {
+                const key = `${item.chargeDate.getFullYear()}-${String(item.chargeDate.getMonth() + 1).padStart(2, '0')}`;
+                if (!monthGroups[key]) monthGroups[key] = [];
+                monthGroups[key].push(item);
+            });
+
+            // 更新月份选择器
+            const monthSelector = document.getElementById('monthSelector');
+            const sortedMonths = Object.keys(monthGroups).sort().reverse();
+            
+            monthSelector.innerHTML = sortedMonths.map(month => `
+                <button class="month-btn" onclick="filterByMonth('${month}')">
+                    <span>${month}</span>
+                    <span class="month-count">${monthGroups[month].length}</span>
+                </button>
+            `).join('');
+
+            // 默认显示最新月份的数据
+            if (sortedMonths.length > 0) {
+                filterByMonth(sortedMonths[0]);
+            }
+        }
+
+        // 按月份过滤
+        function filterByMonth(monthKey) {
+            const [year, month] = monthKey.split('-').map(Number);
+            const monthData = allData.filter(item => {
+                const date = item.chargeDate;
+                return date.getFullYear() === year && (date.getMonth() + 1) === month;
+            }).sort((a, b) => b.chargeDate - a.chargeDate);
+
+            // 更新月份按钮状态
+            document.querySelectorAll('.month-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.includes(monthKey)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // 更新时间线内容
+            const timelineContent = document.getElementById('timelineContent');
+            
+            if (monthData.length === 0) {
+                timelineContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📅</div>
+                        <div>该月暂无充电记录</div>
+                    </div>
+                `;
+                return;
+            }
+
+            timelineContent.innerHTML = monthData.map(item => `
+                <div class="timeline-item" onclick="showDetail('${item.orderId}')">
+                    <div class="timeline-header">
+                        <div class="timeline-date">${formatDateTime(item.chargeDate)}</div>
+                        <span class="tag tag-success">¥${item.totalFee.toFixed(2)}</span>
+                    </div>
+                    <div class="timeline-station">${item.stationName}</div>
+                    <div class="timeline-details">
+                        <div class="detail-item">
+                            <div class="detail-label">电量</div>
+                            <div class="detail-value">${item.totalPower.toFixed(2)} kWh</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">时长</div>
+                            <div class="detail-value">${item.chargeTime} 分钟</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">电费</div>
+                            <div class="detail-value">¥${item.eleFee.toFixed(2)}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">服务费</div>
+                            <div class="detail-value">¥${item.servFee.toFixed(2)}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 更新分析视图
+        function updateAnalysisView() {
+            if (allData.length === 0) return;
+
+            // 最高单次消费
+            const maxCost = Math.max(...allData.map(item => item.totalFee));
+            const maxCostItem = allData.find(item => item.totalFee === maxCost);
+            document.getElementById('maxSingleCost').textContent = '¥' + maxCost.toFixed(2);
+            document.getElementById('maxSingleInfo').textContent = maxCostItem.stationName.substring(0, 10) + '...';
+
+            // 最低单次消费
+            const minCost = Math.min(...allData.map(item => item.totalFee));
+            const minCostItem = allData.find(item => item.totalFee === minCost);
+            document.getElementById('minSingleCost').textContent = '¥' + minCost.toFixed(2);
+            document.getElementById('minSingleInfo').textContent = minCostItem.stationName.substring(0, 10) + '...';
+
+            // 最长充电时间
+            const maxTime = Math.max(...allData.map(item => item.chargeTime));
+            const maxTimeItem = allData.find(item => item.chargeTime === maxTime);
+            document.getElementById('maxChargeTime').textContent = maxTime + '分钟';
+            document.getElementById('maxChargeTimeInfo').textContent = maxTimeItem.stationName.substring(0, 10) + '...';
+
+            // 最高充电电量
+            const maxPower = Math.max(...allData.map(item => item.totalPower));
+            const maxPowerItem = allData.find(item => item.totalPower === maxPower);
+            document.getElementById('maxPower').textContent = maxPower.toFixed(2) + 'kWh';
+            document.getElementById('maxPowerInfo').textContent = maxPowerItem.stationName.substring(0, 10) + '...';
+
+            // 生成简单图表（使用文本和CSS）
+            generateSimpleCharts();
+        }
+
+        // 生成简单图表（文本+CSS可视化）
+        function generateSimpleCharts() {
+            // 充电时段分布
+            const hourData = new Array(24).fill(0);
+            allData.forEach(item => {
+                const hour = item.chargeDate.getHours();
+                hourData[hour]++;
+            });
+
+            const maxHourCount = Math.max(...hourData);
+            const hourChartHtml = `
+                <div style="display: flex; align-items: flex-end; height: 150px; gap: 2px; margin-top: 10px;">
+                    ${hourData.map((count, hour) => `
+                        <div style="
+                            flex: 1; 
+                            background: ${count > 0 ? 'linear-gradient(to top, var(--primary), var(--secondary))' : 'rgba(255,255,255,0.1)'};
+                            height: ${maxHourCount > 0 ? (count / maxHourCount * 100) : 0}%;
+                            border-radius: 2px 2px 0 0;
+                            position: relative;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                        " title="${hour}:00 - ${count}次">
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 10px; color: var(--text-secondary);">
+                    <span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">
+                    高峰时段: ${hourData.map((c, i) => ({hour: i, count: c})).sort((a, b) => b.count - a.count)[0].hour}:00
+                </div>
+            `;
+            document.getElementById('hourChart').innerHTML = hourChartHtml;
+
+            // 费用构成分析
+            const totalEleFee = allData.reduce((sum, item) => sum + item.eleFee, 0);
+            const totalServFee = allData.reduce((sum, item) => sum + item.servFee, 0);
+            const totalFee = totalEleFee + totalServFee;
+            
+            const elePercent = (totalEleFee / totalFee * 100).toFixed(1);
+            const servPercent = (totalServFee / totalFee * 100).toFixed(1);
+
+            const costChartHtml = `
+                <div style="margin: 20px 0;">
+                    <div style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>电费</span>
+                            <span style="color: var(--primary);">¥${totalEleFee.toFixed(2)} (${elePercent}%)</span>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); height: 20px; border-radius: 10px; overflow: hidden;">
+                            <div style="width: ${elePercent}%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary));"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>服务费</span>
+                            <span style="color: var(--warning);">¥${totalServFee.toFixed(2)} (${servPercent}%)</span>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); height: 20px; border-radius: 10px; overflow: hidden;">
+                            <div style="width: ${servPercent}%; height: 100%; background: linear-gradient(90deg, var(--warning), var(--danger));"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('costChart').innerHTML = costChartHtml;
+
+            // 充电效率分析
+            const efficiencyData = allData.map(item => ({
+                power: item.totalPower,
+                time: item.chargeTime,
+                station: item.stationName
+            })).sort((a, b) => (b.power / b.time) - (a.power / a.time)).slice(0, 5);
+
+            const efficiencyChartHtml = `
+                <div style="margin-top: 10px;">
+                    ${efficiencyData.map((item, index) => {
+                        const efficiency = (item.power / item.time * 60).toFixed(2); // kWh/小时
+                        return `
+                            <div style="display: flex; align-items: center; margin-bottom: 8px; gap: 10px;">
+                                <div style="width: 20px; text-align: center; font-weight: 700; color: var(--primary);">${index + 1}</div>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 12px; color: var(--text-secondary);">${item.station.substring(0, 12)}...</div>
+                                    <div style="background: rgba(0, 212, 255, 0.2); height: 6px; border-radius: 3px; margin-top: 2px;">
+                                        <div style="width: ${efficiency * 2}%; height: 100%; background: var(--primary); border-radius: 3px;"></div>
+                                    </div>
+                                </div>
+                                <div style="font-weight: 600; color: var(--secondary);">${efficiency}kWh/h</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            document.getElementById('efficiencyChart').innerHTML = efficiencyChartHtml;
+
+            // 月度充电次数
+            const monthFrequency = {};
+            allData.forEach(item => {
+                const key = `${item.chargeDate.getFullYear()}-${String(item.chargeDate.getMonth() + 1).padStart(2, '0')}`;
+                monthFrequency[key] = (monthFrequency[key] || 0) + 1;
+            });
+
+            const sortedMonths = Object.entries(monthFrequency).sort((a, b) => a[0].localeCompare(b[0]));
+            const maxFreq = Math.max(...Object.values(monthFrequency));
+
+            const frequencyChartHtml = `
+                <div style="display: flex; align-items: flex-end; height: 150px; gap: 4px; margin-top: 10px;">
+                    ${sortedMonths.map(([month, count]) => `
+                        <div style="
+                            flex: 1;
+                            background: linear-gradient(to top, var(--secondary), var(--primary));
+                            height: ${count / maxFreq * 100}%;
+                            border-radius: 3px 3px 0 0;
+                            position: relative;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                        " title="${month}: ${count}次">
+                            <div style="
+                                position: absolute;
+                                bottom: -20px;
+                                left: 50%;
+                                transform: translateX(-50%);
+                                font-size: 9px;
+                                white-space: nowrap;
+                                color: var(--text-secondary);
+                            ">${month.split('-')[1]}月</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById('frequencyChart').innerHTML = frequencyChartHtml;
+        }
+
+        // 更新总览图表
+        function updateOverviewCharts() {
+            if (allData.length === 0) return;
+
+            // 月度消费趋势
+            const monthlyCost = {};
+            allData.forEach(item => {
+                const key = `${item.chargeDate.getFullYear()}-${String(item.chargeDate.getMonth() + 1).padStart(2, '0')}`;
+                monthlyCost[key] = (monthlyCost[key] || 0) + item.totalFee;
+            });
+
+            const sortedMonths = Object.entries(monthlyCost).sort((a, b) => a[0].localeCompare(b[0]));
+            const maxCost = Math.max(...Object.values(monthlyCost));
+
+            const monthlyChartHtml = `
+                <div style="display: flex; align-items: flex-end; height: 150px; gap: 6px; margin-top: 10px;">
+                    ${sortedMonths.map(([month, cost]) => {
+                        const height = (cost / maxCost * 100);
+                        return `
+                            <div style="
+                                flex: 1;
+                                background: linear-gradient(to top, var(--primary), var(--secondary));
+                                height: ${height}%;
+                                border-radius: 4px 4px 0 0;
+                                position: relative;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                            " title="${month}: ¥${cost.toFixed(2)}">
+                                <div style="
+                                    position: absolute;
+                                    bottom: -25px;
+                                    left: 50%;
+                                    transform: translateX(-50%);
+                                    font-size: 9px;
+                                    white-space: nowrap;
+                                    color: var(--text-secondary);
+                                ">${month.split('-')[1]}月</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div style="margin-top: 15px; display: flex; justify-content: space-around; font-size: 11px; color: var(--text-secondary);">
+                    <div>总消费: ¥${Object.values(monthlyCost).reduce((a, b) => a + b, 0).toFixed(0)}</div>
+                    <div>月均: ¥${(Object.values(monthlyCost).reduce((a, b) => a + b, 0) / sortedMonths.length).toFixed(0)}</div>
+                </div>
+            `;
+            document.getElementById('monthlyChart').innerHTML = monthlyChartHtml;
+
+            // 充电站分布
+            const stationCounts = {};
+            allData.forEach(item => {
+                stationCounts[item.stationName] = (stationCounts[item.stationName] || 0) + 1;
+            });
+
+            const sortedStations = Object.entries(stationCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+            const maxCount = sortedStations[0] ? sortedStations[0][1] : 1;
+
+            const stationChartHtml = `
+                <div style="margin-top: 10px;">
+                    ${sortedStations.map(([station, count], index) => {
+                        const width = (count / maxCount * 100);
+                        const colors = ['var(--primary)', 'var(--secondary)', 'var(--warning)', 'var(--danger)', '#9b59b6', '#3498db'];
+                        return `
+                            <div style="margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
+                                    <span>${index + 1}. ${station.substring(0, 10)}...</span>
+                                    <span style="font-weight: 600;">${count}次</span>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
+                                    <div style="width: ${width}%; height: 100%; background: ${colors[index % colors.length]};"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            document.getElementById('stationChart').innerHTML = stationChartHtml;
+        }
+
+        // 数据过滤
+        function filterData() {
+            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            const stationFilter = document.getElementById('stationFilter')?.value || '';
+            const monthFilter = document.getElementById('monthFilter')?.value || '';
+
+            filteredData = allData.filter(item => {
+                // 搜索过滤
+                const matchesSearch = !searchTerm || 
+                    item.stationName.toLowerCase().includes(searchTerm) ||
+                    item.orderId.toLowerCase().includes(searchTerm);
+
+                // 充电站过滤
+                const matchesStation = !stationFilter || item.stationName === stationFilter;
+
+                // 月份过滤
+                const matchesMonth = !monthFilter || 
+                    `${item.chargeDate.getFullYear()}-${String(item.chargeDate.getMonth() + 1).padStart(2, '0')}` === monthFilter;
+
+                return matchesSearch && matchesStation && matchesMonth;
+            });
+
+            updateListTable();
+        }
+
+        // 填充过滤器选项
+        function populateFilters() {
+            // 充电站选项
+            const stations = [...new Set(allData.map(item => item.stationName))].sort();
+            const stationFilter = document.getElementById('stationFilter');
+            if (stationFilter) {
+                stationFilter.innerHTML = '<option value="">所有充电站</option>' + 
+                    stations.map(s => `<option value="${s}">${s}</option>`).join('');
+            }
+
+            // 月份选项
+            const months = [...new Set(allData.map(item => 
+                `${item.chargeDate.getFullYear()}-${String(item.chargeDate.getMonth() + 1).padStart(2, '0')}`
+            ))].sort();
+            const monthFilter = document.getElementById('monthFilter');
+            if (monthFilter) {
+                monthFilter.innerHTML = '<option value="">所有月份</option>' + 
+                    months.map(m => `<option value="${m}">${m}</option>`).join('');
+            }
+        }
+
+        // 显示详情弹窗
+        function showDetail(orderId) {
+            const item = allData.find(d => d.orderId === orderId);
+            if (!item) return;
+
+            document.getElementById('modalTitle').textContent = `订单详情 - ${item.orderId}`;
+            
+            const details = [
+                ['订单时间', formatDateTime(item.chargeDate)],
+                ['充电站', item.stationName],
+                ['订单号', item.orderId],
+                ['连接器ID', item.connectorId],
+                ['操作商', item.operatorId],
+                ['站点ID', item.stationId],
+                ['充电开始', item.chargeSTime],
+                ['充电结束', item.chargeETime],
+                ['订单开始', item.orderSTime],
+                ['订单结束', item.orderETime],
+                ['充电时长', `${item.chargeTime} 分钟`],
+                ['充电电量', `${item.totalPower.toFixed(2)} kWh`],
+                ['电费', `¥${item.eleFee.toFixed(2)}`],
+                ['服务费', `¥${item.servFee.toFixed(2)}`],
+                ['总费用', `¥${item.totalFee.toFixed(2)}`],
+                ['支付费用', `¥${item.paymentFee.toFixed(2)}`],
+                ['支付状态', item.payStatus === 3 ? '<span class="tag tag-success">已支付</span>' : '<span class="tag tag-warning">待支付</span>'],
+                ['订单状态', item.orderStatus === 4 ? '<span class="tag tag-success">已完成</span>' : '<span class="tag tag-warning">进行中</span>'],
+                ['账单生成', item.billGenerated ? '<span class="tag tag-success">是</span>' : '<span class="tag tag-warning">否</span>'],
+                ['是否可删除', item.deleteAllowed ? '<span class="tag tag-success">是</span>' : '<span class="tag tag-danger">否</span>'],
+                ['充电序列号', item.chargeSeq],
+            ];
+
+            document.getElementById('modalContent').innerHTML = details.map(([key, value]) => `
+                <div class="detail-row">
+                    <div class="detail-key">${key}</div>
+                    <div class="detail-val">${value}</div>
+                </div>
+            `).join('');
+
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        // 关闭弹窗
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+
+        // 导出数据
+        function exportData() {
+            if (filteredData.length === 0) {
+                alert('没有数据可导出');
+                return;
+            }
+
+            const csvContent = [
+                ['订单时间', '充电站', '订单号', '费用(元)', '电量(kWh)', '时长(分钟)', '电费', '服务费', '状态'].join(','),
+                ...filteredData.map(item => [
+                    formatDateTime(item.chargeDate),
+                    `"${item.stationName}"`,
+                    item.orderId,
+                    item.totalFee.toFixed(2),
+                    item.totalPower.toFixed(2),
+                    item.chargeTime,
+                    item.eleFee.toFixed(2),
+                    item.servFee.toFixed(2),
+                    '已完成'
+                ].join(','))
+            ].join('\n');
+
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `充电数据_${new Date().toISOString().slice(0, 10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 工具函数
+        function formatDateTime(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // 点击弹窗外部关闭
+        document.getElementById('detailModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // ESC键关闭弹窗
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
